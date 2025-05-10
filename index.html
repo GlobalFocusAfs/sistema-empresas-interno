@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Empresas</title>
+    <title>Sistema de Empresas - GlobalFocus</title>
     <link rel="stylesheet" href="styles/style.css">
 </head>
 <body>
     <div class="container">
         <h1>Sistema Interno de Empresas</h1>
+        <p class="repo-info">Repositório: GlobalFocusAfs/sistema-empresas-interno</p>
         
         <div class="form-container">
             <h2>Adicionar Nova Empresa</h2>
@@ -34,13 +35,13 @@
         </div>
         
         <div class="lista-empresas">
-            <h2>Empresas Cadastradas</h2>
+            <h2>Empresas Cadastradas <span id="contador">(0)</span></h2>
             <div id="empresasList"></div>
         </div>
         
         <div class="actions">
             <button id="syncButton">Sincronizar com GitHub</button>
-            <p id="syncStatus"></p>
+            <p id="syncStatus">Pronto para sincronizar</p>
         </div>
     </div>
 
