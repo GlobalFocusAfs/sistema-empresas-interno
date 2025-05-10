@@ -4,18 +4,23 @@ const REPO_NAME = 'sistema-empresas-interno';
 const FILE_PATH = 'data/empresas.json';
 const GITHUB_TOKEN = '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';
 
-// Função para sincronizar com GitHub
-async function syncWithGitHub() {
+// Função principal de sincronização (agora disponível globalmente)
+window.syncWithGitHub = async function() {
     const statusElement = document.getElementById('syncStatus');
+    if (!statusElement) {
+        console.error('Elemento syncStatus não encontrado');
+        return;
+    }
+
     try {
         statusElement.textContent = 'Iniciando sincronização...';
         statusElement.style.color = 'blue';
         
-        console.log('Obtendo conteúdo atual...');
+        // 1. Obter conteúdo atual do arquivo
         let currentContent;
         try {
             currentContent = await getFileContent();
-            console.log('Conteúdo obtido com sucesso:', currentContent);
+            console.log('Conteúdo atual obtido:', currentContent);
         } catch (error) {
             if (error.message.includes('404')) {
                 console.log('Arquivo não existe, criando novo...');
@@ -25,34 +30,39 @@ async function syncWithGitHub() {
             }
         }
 
-        console.log('Preparando novo conteúdo...');
+        // 2. Preparar novo conteúdo
+        const empresas = window.empresas || [];
         const newContent = {
             empresas: empresas
         };
         const newContentString = JSON.stringify(newContent, null, 2);
         
-        console.log('Atualizando arquivo no GitHub...');
+        // 3. Atualizar arquivo no GitHub
         await updateFile(newContentString, currentContent.sha);
         
         statusElement.textContent = 'Sincronizado com sucesso! ✅';
         statusElement.style.color = 'green';
-        console.log('Sincronização completa');
         
+        // Limpa storage local após sincronização
         localStorage.removeItem('empresasPendentes');
     } catch (error) {
-        console.error('Erro detalhado:', error);
-        statusElement.textContent = `Erro ao sincronizar! ❌ (${error.message})`;
-        statusElement.style.color = 'red';
+        console.error('Erro na sincronização:', error);
+        const statusElement = document.getElementById('syncStatus');
+        if (statusElement) {
+            statusElement.textContent = `Erro ao sincronizar! ❌ (${error.message})`;
+            statusElement.style.color = 'red';
+        }
         
-        // Adiciona os dados não sincronizados de volta ao localStorage
-        localStorage.setItem('empresasPendentes', JSON.stringify(empresas));
+        // Mantém os dados não sincronizados no localStorage
+        if (window.empresas) {
+            localStorage.setItem('empresasPendentes', JSON.stringify(window.empresas));
+        }
     }
-}
+};
 
-// Obtém conteúdo do arquivo no GitHub
+// Função para obter conteúdo do arquivo
 async function getFileContent() {
     const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
-    console.log(`Buscando arquivo em: ${url}`);
     
     const response = await fetch(url, {
         headers: {
@@ -63,29 +73,19 @@ async function getFileContent() {
     
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Resposta de erro do GitHub:', errorData);
         throw new Error(`HTTP ${response.status}: ${errorData.message || 'Falha ao obter arquivo'}`);
     }
     
     const data = await response.json();
     return {
-        content: decodeBase64(data.content),
+        content: atob(data.content.replace(/\s/g, '')),
         sha: data.sha
     };
 }
 
-// Atualiza arquivo no GitHub
+// Função para atualizar arquivo no GitHub
 async function updateFile(content, sha) {
     const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
-    console.log(`Enviando atualização para: ${url}`);
-    
-    const body = {
-        message: `Atualização via sistema - ${new Date().toLocaleString('pt-BR')}`,
-        content: encodeBase64(content),
-        sha: sha || undefined // Envia sha apenas se existir
-    };
-    
-    console.log('Dados sendo enviados:', { ...body, content: '...' }); // Não loga conteúdo completo
     
     const response = await fetch(url, {
         method: 'PUT',
@@ -94,36 +94,23 @@ async function updateFile(content, sha) {
             'Accept': 'application/vnd.github.v3+json',
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+            message: `Atualização de empresas via sistema - ${new Date().toLocaleString('pt-BR')}`,
+            content: btoa(unescape(encodeURIComponent(content))),
+            sha: sha
+        })
     });
     
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Resposta de erro do GitHub:', errorData);
         throw new Error(`HTTP ${response.status}: ${errorData.message || 'Falha ao atualizar arquivo'}`);
     }
-    
-    return await response.json();
 }
 
-// Funções auxiliares
-function decodeBase64(content) {
-    try {
-        return decodeURIComponent(escape(atob(content)));
-    } catch (e) {
-        console.error('Erro ao decodificar conteúdo:', e);
-        return atob(content);
-    }
-}
-
-function encodeBase64(content) {
-    return btoa(unescape(encodeURIComponent(content)));
-}
-
-// Log inicial para verificar configurações
-console.log('Configurações GitHub:', {
+// Verifica se as configurações estão corretas no carregamento
+console.log('GitHub API Config:', {
     REPO_OWNER,
     REPO_NAME,
     FILE_PATH,
-    GITHUB_TOKEN: GITHUB_TOKEN ? '*** (token presente)' : '❌ (token ausente)'
+    TOKEN_PRESENT: !!GITHUB_TOKEN
 });
