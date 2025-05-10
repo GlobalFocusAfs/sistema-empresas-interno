@@ -2,7 +2,7 @@
 const REPO_OWNER = 'GlobalFocusAfs';
 const REPO_NAME = 'sistema-empresas-interno';
 const FILE_PATH = 'data/empresas.json';
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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';
 
 // Função principal de sincronização (agora disponível globalmente)
 window.syncWithGitHub = async function() {
