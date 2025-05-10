@@ -1,9 +1,3 @@
-// Configurações do repositório
-const GlobalFocusAfs = 'seu-usuario-github';
-const sistema-empresas-interno = 'sistema-empresas-interno';
-const FILE_PATH = 'data/empresas.json';
-const  = 'seu-token-de-acesso'; // Gerar em GitHub > Settings > Developer settings > Personal access tokens
-// Sincroniza com GitHub
 async function syncWithGitHub() {
     try {
         const statusElement = document.getElementById('syncStatus');
