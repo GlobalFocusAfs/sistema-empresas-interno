@@ -45,7 +45,17 @@
         </div>
     </div>
 
+    <!-- Carrega primeiro o github.js que define syncWithGitHub -->
     <script src="scripts/github.js"></script>
+    <!-- Depois carrega app.js que usa a função -->
     <script src="scripts/app.js"></script>
+    
+    <!-- Verificação final -->
+    <script>
+        console.log('Verificação final:', {
+            empresas: window.empresas || [],
+            syncWithGitHub: typeof syncWithGitHub
+        });
+    </script>
 </body>
 </html>
