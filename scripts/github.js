@@ -1,8 +1,8 @@
 // Configurações do repositório
-const GlobalFocusAfs = 'GlobalFocusAfs';
-const sistema-empresas-interno = 'sistema-empresas-interno';
-const data/empresas.json = 'data/empresas.json';
-const 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 = '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';
+const REPO_OWNER = 'GlobalFocusAfs';
+const REPO_NAME = 'sistema-empresas-interno';
+const FILE_PATH = 'data/empresas.json';
+const GITHUB_TOKEN = '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';
 
 // Função para sincronizar com GitHub
 async function syncWithGitHub() {
@@ -51,12 +51,12 @@ async function syncWithGitHub() {
 
 // Obtém conteúdo do arquivo no GitHub
 async function getFileContent() {
-    const url = `https://api.github.com/repos/${GlobalFocusAfs}/${sistema-empresas-interno}/contents/${data/empresas.json}`;
+    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
     console.log(`Buscando arquivo em: ${url}`);
     
     const response = await fetch(url, {
         headers: {
-            'Authorization': `token ${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}`,
+            'Authorization': `token ${GITHUB_TOKEN}`,
             'Accept': 'application/vnd.github.v3+json'
         }
     });
@@ -76,7 +76,7 @@ async function getFileContent() {
 
 // Atualiza arquivo no GitHub
 async function updateFile(content, sha) {
-    const url = `https://api.github.com/repos/${GlobalFocusAfs}/${sistema-empresas-interno}/contents/${data/empresas.json}`;
+    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
     console.log(`Enviando atualização para: ${url}`);
     
     const body = {
@@ -90,7 +90,7 @@ async function updateFile(content, sha) {
     const response = await fetch(url, {
         method: 'PUT',
         headers: {
-            'Authorization': `token ${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}`,
+            'Authorization': `token ${GITHUB_TOKEN}`,
             'Accept': 'application/vnd.github.v3+json',
             'Content-Type': 'application/json'
         },
@@ -122,8 +122,8 @@ function encodeBase64(content) {
 
 // Log inicial para verificar configurações
 console.log('Configurações GitHub:', {
-    GlobalFocusAfs,
-    sistema-empresas-interno,
-    data/empresas.json,
-    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: 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 ? '*** (token presente)' : '❌ (token ausente)'
+    REPO_OWNER,
+    REPO_NAME,
+    FILE_PATH,
+    GITHUB_TOKEN: GITHUB_TOKEN ? '*** (token presente)' : '❌ (token ausente)'
 });
