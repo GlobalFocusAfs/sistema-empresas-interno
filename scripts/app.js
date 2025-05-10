@@ -1,72 +1,62 @@
-// Array para armazenar empresas em memória
-let empresas = [];
+// Variável global para armazenar as empresas
+window.empresas = [];
 
-// Carrega os dados quando a página é aberta
-document.addEventListener('DOMContentLoaded', () => {
-    checkLocalData();
-    loadEmpresas();
-    
-    // Formulário de nova empresa
-    document.getElementById('empresaForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        addEmpresa();
-    });
-    
-    // Botão de sincronização
-    document.getElementById('syncButton').addEventListener('click', syncWithGitHub);
-});
-
-// Carrega empresas do arquivo JSON
+// Função para carregar empresas
 async function loadEmpresas() {
     try {
         const response = await fetch('data/empresas.json');
         if (!response.ok) throw new Error('Arquivo não encontrado');
         
         const data = await response.json();
-        empresas = data.empresas || [];
+        window.empresas = data.empresas || [];
         renderEmpresas();
-        console.log('Empresas carregadas:', empresas.length);
+        
+        // Atualiza contador
+        updateCounter();
     } catch (error) {
         console.error('Erro ao carregar empresas:', error);
-        // Tenta carregar do localStorage se houver
-        const localData = localStorage.getItem('empresasPendentes');
-        if (localData) {
-            empresas = JSON.parse(localData);
-            renderEmpresas();
-        }
+        checkLocalData();
     }
 }
 
-// Adiciona nova empresa
+// Função para adicionar nova empresa
 function addEmpresa() {
-    const nome = document.getElementById('nome').value;
-    const cnpj = document.getElementById('cnpj').value;
-    const situacao = document.getElementById('situacao').value;
+    const nomeInput = document.getElementById('nome');
+    const cnpjInput = document.getElementById('cnpj');
+    const situacaoSelect = document.getElementById('situacao');
+    
+    if (!nomeInput || !cnpjInput || !situacaoSelect) {
+        console.error('Elementos do formulário não encontrados');
+        return;
+    }
     
     const novaEmpresa = {
         id: Date.now(),
-        nome,
-        cnpj,
-        situacao,
+        nome: nomeInput.value,
+        cnpj: cnpjInput.value,
+        situacao: situacaoSelect.value,
         dataCadastro: new Date().toISOString()
     };
     
-    empresas.push(novaEmpresa);
+    window.empresas.push(novaEmpresa);
     renderEmpresas();
     saveToLocal();
     
     // Limpa o formulário
     document.getElementById('empresaForm').reset();
     
-    console.log('Nova empresa adicionada:', novaEmpresa);
+    // Atualiza contador
+    updateCounter();
 }
 
-// Exibe empresas na tela
+// Função para renderizar empresas na tabela
 function renderEmpresas() {
     const container = document.getElementById('empresasList');
+    if (!container) return;
+    
     container.innerHTML = '';
     
-    if (empresas.length === 0) {
+    if (window.empresas.length === 0) {
         container.innerHTML = '<p>Nenhuma empresa cadastrada.</p>';
         return;
     }
@@ -82,7 +72,7 @@ function renderEmpresas() {
             </tr>
         </thead>
         <tbody>
-            ${empresas.map(empresa => `
+            ${window.empresas.map(empresa => `
                 <tr>
                     <td>${empresa.nome}</td>
                     <td>${empresa.cnpj}</td>
@@ -96,20 +86,67 @@ function renderEmpresas() {
     container.appendChild(table);
 }
 
-// Salva localmente até a sincronização com GitHub
+// Função para salvar no localStorage
 function saveToLocal() {
-    localStorage.setItem('empresasPendentes', JSON.stringify(empresas));
-    console.log('Dados salvos localmente');
+    if (window.empresas) {
+        localStorage.setItem('empresasPendentes', JSON.stringify(window.empresas));
+    }
 }
 
-// Verifica se há dados locais não sincronizados
+// Função para verificar dados locais
 function checkLocalData() {
     const pendingData = localStorage.getItem('empresasPendentes');
     if (pendingData) {
         if (confirm('Existem dados não sincronizados. Deseja carregá-los?')) {
-            empresas = JSON.parse(pendingData);
+            window.empresas = JSON.parse(pendingData);
             renderEmpresas();
-            console.log('Dados locais carregados:', empresas.length);
+            updateCounter();
         }
     }
 }
+
+// Função para atualizar contador
+function updateCounter() {
+    const counterElement = document.getElementById('contador');
+    if (counterElement) {
+        counterElement.textContent = `(${window.empresas ? window.empresas.length : 0})`;
+    }
+}
+
+// Inicialização quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', () => {
+    // Carrega empresas
+    loadEmpresas();
+    
+    // Configura o formulário
+    const form = document.getElementById('empresaForm');
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            addEmpresa();
+        });
+    }
+    
+    // Configura o botão de sincronização
+    const syncButton = document.getElementById('syncButton');
+    if (syncButton) {
+        syncButton.addEventListener('click', () => {
+            if (typeof syncWithGitHub === 'function') {
+                syncWithGitHub();
+            } else {
+                console.error('Função syncWithGitHub não disponível');
+                const statusElement = document.getElementById('syncStatus');
+                if (statusElement) {
+                    statusElement.textContent = 'Erro: Função não disponível';
+                    statusElement.style.color = 'red';
+                }
+            }
+        });
+    }
+    
+    // Verificação inicial
+    console.log('Aplicativo iniciado', {
+        empresas: window.empresas,
+        syncWithGitHub: typeof syncWithGitHub
+    });
+});
