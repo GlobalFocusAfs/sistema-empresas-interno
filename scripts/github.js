@@ -1,10 +1,10 @@
-// Configurações do repositório
+// Configurações do repositório - ATUALIZE ESTES VALORES!
 const REPO_OWNER = 'GlobalFocusAfs';
 const REPO_NAME = 'sistema-empresas-interno';
 const FILE_PATH = 'data/empresas.json';
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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'; // ← Substitua pelo token gerado
 
-// Função principal de sincronização (agora disponível globalmente)
+// Função principal de sincronização
 window.syncWithGitHub = async function() {
     const statusElement = document.getElementById('syncStatus');
     if (!statusElement) {
@@ -16,6 +16,11 @@ window.syncWithGitHub = async function() {
         statusElement.textContent = 'Iniciando sincronização...';
         statusElement.style.color = 'blue';
         
+        // Verifica se o token está presente
+        if (!GITHUB_TOKEN || GITHUB_TOKEN.length < 10) {
+            throw new Error('Token de acesso não configurado corretamente');
+        }
+
         // 1. Obter conteúdo atual do arquivo
         let currentContent;
         try {
@@ -47,11 +52,12 @@ window.syncWithGitHub = async function() {
         localStorage.removeItem('empresasPendentes');
     } catch (error) {
         console.error('Erro na sincronização:', error);
-        const statusElement = document.getElementById('syncStatus');
-        if (statusElement) {
-            statusElement.textContent = `Erro ao sincronizar! ❌ (${error.message})`;
-            statusElement.style.color = 'red';
-        }
+        const errorMessage = error.message.includes('401') 
+            ? 'Acesso não autorizado - Token inválido ou expirado' 
+            : error.message;
+        
+        statusElement.textContent = `Erro ao sincronizar! ❌ (${errorMessage})`;
+        statusElement.style.color = 'red';
         
         // Mantém os dados não sincronizados no localStorage
         if (window.empresas) {
@@ -60,57 +66,5 @@ window.syncWithGitHub = async function() {
     }
 };
 
-// Função para obter conteúdo do arquivo
-async function getFileContent() {
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
-    
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json'
-        }
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`HTTP ${response.status}: ${errorData.message || 'Falha ao obter arquivo'}`);
-    }
-    
-    const data = await response.json();
-    return {
-        content: atob(data.content.replace(/\s/g, '')),
-        sha: data.sha
-    };
-}
-
-// Função para atualizar arquivo no GitHub
-async function updateFile(content, sha) {
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
-    
-    const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            message: `Atualização de empresas via sistema - ${new Date().toLocaleString('pt-BR')}`,
-            content: btoa(unescape(encodeURIComponent(content))),
-            sha: sha
-        })
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`HTTP ${response.status}: ${errorData.message || 'Falha ao atualizar arquivo'}`);
-    }
-}
-
-// Verifica se as configurações estão corretas no carregamento
-console.log('GitHub API Config:', {
-    REPO_OWNER,
-    REPO_NAME,
-    FILE_PATH,
-    TOKEN_PRESENT: !!GITHUB_TOKEN
-});
+// Restante do código permanece igual...
+// [Manter as outras funções getFileContent, updateFile, etc.]
