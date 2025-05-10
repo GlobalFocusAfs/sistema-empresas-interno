@@ -2,7 +2,7 @@
 const REPO_OWNER = 'GlobalFocusAfs';
 const REPO_NAME = 'sistema-empresas-interno';
 const FILE_PATH = 'data/empresas.json';
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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';
 
 // Função principal de sincronização
 window.syncWithGitHub = async function() {
@@ -13,36 +13,23 @@ window.syncWithGitHub = async function() {
     }
 
     try {
-        // Validação inicial
-        if (!GITHUB_TOKEN || GITHUB_TOKEN.length < 10) {
-            throw new Error('Token de acesso não configurado corretamente');
+        // Validação inicial do token
+        if (!validateGitHubToken(GITHUB_TOKEN)) {
+            throw new Error('Formato do token inválido');
         }
 
         statusElement.textContent = 'Iniciando sincronização...';
         statusElement.style.color = 'blue';
         
         // 1. Obter conteúdo atual do arquivo
-        let currentContent;
-        try {
-            currentContent = await getFileContent();
-            console.log('Conteúdo atual obtido com sucesso');
-        } catch (error) {
-            if (error.message.includes('404')) {
-                console.log('Arquivo não existe, criando novo...');
-                currentContent = { 
-                    content: '{"empresas": []}', 
-                    sha: null 
-                };
-            } else {
-                throw error;
-            }
-        }
-
+        let currentContent = await getFileContentWithRetry();
+        
         // 2. Preparar novo conteúdo
         const empresas = window.empresas || [];
         const newContent = {
             empresas: empresas,
-            ultimaAtualizacao: new Date().toISOString()
+            ultimaAtualizacao: new Date().toISOString(),
+            totalRegistros: empresas.length
         };
         const newContentString = JSON.stringify(newContent, null, 2);
         
@@ -57,45 +44,51 @@ window.syncWithGitHub = async function() {
         
         // Atualiza a lista após sincronização
         if (typeof loadEmpresas === 'function') {
-            loadEmpresas();
+            await loadEmpresas();
         }
     } catch (error) {
-        console.error('Erro na sincronização:', error);
-        
-        let errorMessage = error.message;
-        if (error.message.includes('401')) {
-            errorMessage = 'Token inválido ou expirado. Gere um novo token.';
-        } else if (error.message.includes('403')) {
-            errorMessage = 'Acesso proibido. Verifique as permissões do token.';
-        } else if (error.message.includes('404')) {
-            errorMessage = 'Arquivo não encontrado. Verifique o caminho.';
-        }
-        
-        statusElement.textContent = `Erro ao sincronizar! ❌ (${errorMessage})`;
-        statusElement.style.color = 'red';
-        
-        // Mantém os dados não sincronizados no localStorage
-        if (window.empresas) {
-            localStorage.setItem('empresasPendentes', JSON.stringify(window.empresas));
-        }
+        handleSyncError(error, statusElement);
     }
 };
+
+// Função para obter conteúdo do arquivo com tentativa de retry
+async function getFileContentWithRetry() {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const content = await getFileContent();
+            return content;
+        } catch (error) {
+            lastError = error;
+            if (error.message.includes('404')) {
+                console.log('Arquivo não existe, criando novo...');
+                return { 
+                    content: '{"empresas": []}', 
+                    sha: null 
+                };
+            }
+            
+            if (attempt < 2) {
+                console.log(`Tentativa ${attempt} falhou, tentando novamente...`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    }
+    
+    throw lastError;
+}
 
 // Função para obter conteúdo do arquivo
 async function getFileContent() {
     const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
     
     const response = await fetch(url, {
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'SistemaEmpresas/1.0'
-        }
+        headers: createGitHubHeaders()
     });
     
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Resposta de erro do GitHub:', errorData);
         throw new Error(`HTTP ${response.status}: ${errorData.message || 'Falha ao obter arquivo'}`);
     }
     
@@ -113,23 +106,17 @@ async function updateFile(content, sha) {
     const body = {
         message: `Atualização via sistema - ${new Date().toLocaleString('pt-BR')}`,
         content: encodeBase64(content),
-        sha: sha || undefined // Envia sha apenas se existir
+        sha: sha || undefined
     };
     
     const response = await fetch(url, {
         method: 'PUT',
-        headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'SistemaEmpresas/1.0'
-        },
+        headers: createGitHubHeaders(),
         body: JSON.stringify(body)
     });
     
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Resposta de erro do GitHub:', errorData);
         throw new Error(`HTTP ${response.status}: ${errorData.message || 'Falha ao atualizar arquivo'}`);
     }
     
@@ -150,34 +137,87 @@ function encodeBase64(content) {
     return btoa(unescape(encodeURIComponent(content)));
 }
 
+function createGitHubHeaders() {
+    return {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'SistemaEmpresas/1.0',
+        'X-GitHub-Api-Version': '2022-11-28'
+    };
+}
+
+function validateGitHubToken(token) {
+    if (!token) return false;
+    // Verifica se é um PAT (começa com github_pat_) ou token clássico
+    return token.startsWith('github_pat_') || token.startsWith('ghp_');
+}
+
+function handleSyncError(error, statusElement) {
+    console.error('Erro na sincronização:', error);
+    
+    let errorMessage = error.message;
+    if (error.message.includes('401') || error.message.includes('403')) {
+        errorMessage = 'Token inválido, expirado ou sem permissões suficientes';
+    } else if (error.message.includes('404')) {
+        errorMessage = 'Arquivo ou repositório não encontrado';
+    } else if (error.message.includes('422')) {
+        errorMessage = 'Dados inválidos ou SHA incorreto';
+    }
+    
+    if (statusElement) {
+        statusElement.textContent = `Erro ao sincronizar! ❌ (${errorMessage})`;
+        statusElement.style.color = 'red';
+    }
+    
+    // Mantém os dados não sincronizados no localStorage
+    if (window.empresas) {
+        localStorage.setItem('empresasPendentes', JSON.stringify(window.empresas));
+    }
+}
+
 // Verificação inicial
 console.log('Configurações GitHub:', {
     REPO_OWNER,
     REPO_NAME,
     FILE_PATH,
-    TOKEN_PRESENT: !!GITHUB_TOKEN && GITHUB_TOKEN.length > 10
+    TOKEN_VALID: validateGitHubToken(GITHUB_TOKEN)
 });
 
-// Teste de conexão inicial (opcional)
-async function testConnection() {
+// Teste de conexão inicial
+async function testGitHubConnection() {
     try {
         const testUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`;
         const response = await fetch(testUrl, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
+            headers: createGitHubHeaders()
         });
         
         if (!response.ok) {
-            console.error('Teste de conexão falhou:', response.status);
-        } else {
-            console.log('Conexão com GitHub API: OK');
+            throw new Error(`HTTP ${response.status}`);
         }
+        
+        const data = await response.json();
+        console.log('Conexão com GitHub API: OK', {
+            repo: data.full_name,
+            permissions: data.permissions
+        });
+        return true;
     } catch (error) {
-        console.error('Erro no teste de conexão:', error);
+        console.error('Falha no teste de conexão:', error);
+        return false;
     }
 }
 
-// Executa o teste (remova em produção se desejar)
-testConnection();
+// Executa o teste de conexão ao carregar
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        testGitHubConnection().then(success => {
+            if (!success) {
+                const statusElement = document.getElementById('syncStatus');
+                if (statusElement) {
+                    statusElement.textContent = 'Problema na conexão com GitHub. Verifique o console.';
+                    statusElement.style.color = 'orange';
+                }
+            }
+        });
+    }, 1000);
+});
