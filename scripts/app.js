@@ -1,5 +1,9 @@
+// Array para armazenar empresas em memória
+let empresas = [];
+
 // Carrega os dados quando a página é aberta
 document.addEventListener('DOMContentLoaded', () => {
+    checkLocalData();
     loadEmpresas();
     
     // Formulário de nova empresa
@@ -12,18 +16,24 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('syncButton').addEventListener('click', syncWithGitHub);
 });
 
-// Array para armazenar empresas em memória
-let empresas = [];
-
 // Carrega empresas do arquivo JSON
 async function loadEmpresas() {
     try {
         const response = await fetch('data/empresas.json');
+        if (!response.ok) throw new Error('Arquivo não encontrado');
+        
         const data = await response.json();
         empresas = data.empresas || [];
         renderEmpresas();
+        console.log('Empresas carregadas:', empresas.length);
     } catch (error) {
         console.error('Erro ao carregar empresas:', error);
+        // Tenta carregar do localStorage se houver
+        const localData = localStorage.getItem('empresasPendentes');
+        if (localData) {
+            empresas = JSON.parse(localData);
+            renderEmpresas();
+        }
     }
 }
 
@@ -34,7 +44,7 @@ function addEmpresa() {
     const situacao = document.getElementById('situacao').value;
     
     const novaEmpresa = {
-        id: Date.now(), // ID único baseado no timestamp
+        id: Date.now(),
         nome,
         cnpj,
         situacao,
@@ -43,10 +53,12 @@ function addEmpresa() {
     
     empresas.push(novaEmpresa);
     renderEmpresas();
-    saveToLocal(); // Salva localmente até a sincronização
+    saveToLocal();
     
     // Limpa o formulário
     document.getElementById('empresaForm').reset();
+    
+    console.log('Nova empresa adicionada:', novaEmpresa);
 }
 
 // Exibe empresas na tela
@@ -75,7 +87,7 @@ function renderEmpresas() {
                     <td>${empresa.nome}</td>
                     <td>${empresa.cnpj}</td>
                     <td class="situacao-${empresa.situacao.toLowerCase()}">${empresa.situacao}</td>
-                    <td>${new Date(empresa.dataCadastro).toLocaleDateString()}</td>
+                    <td>${new Date(empresa.dataCadastro).toLocaleDateString('pt-BR')}</td>
                 </tr>
             `).join('')}
         </tbody>
@@ -87,6 +99,7 @@ function renderEmpresas() {
 // Salva localmente até a sincronização com GitHub
 function saveToLocal() {
     localStorage.setItem('empresasPendentes', JSON.stringify(empresas));
+    console.log('Dados salvos localmente');
 }
 
 // Verifica se há dados locais não sincronizados
@@ -96,6 +109,7 @@ function checkLocalData() {
         if (confirm('Existem dados não sincronizados. Deseja carregá-los?')) {
             empresas = JSON.parse(pendingData);
             renderEmpresas();
+            console.log('Dados locais carregados:', empresas.length);
         }
     }
 }
