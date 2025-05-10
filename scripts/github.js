@@ -36,11 +36,11 @@ async function syncWithGitHub() {
 
 // Obtém conteúdo atual do arquivo
 async function getFileContent() {
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+    const url = `https://api.github.com/repos/${GlobalFocusAfs}/${sistema-empresas-interno}/contents/${FILE_PATH}`;
     
     const response = await fetch(url, {
         headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
+            'Authorization': `token ${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}`,
             'Accept': 'application/vnd.github.v3+json'
         }
     });
@@ -56,12 +56,12 @@ async function getFileContent() {
 
 // Atualiza arquivo no GitHub
 async function updateFile(content, sha) {
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+    const url = `https://api.github.com/repos/${GlobalFocusAfs}/${sistema-empresas-interno}/contents/${FILE_PATH}`;
     
     const response = await fetch(url, {
         method: 'PUT',
         headers: {
-            'Authorization': `token ${GITHUB_TOKEN}`,
+            'Authorization': `token ${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}`,
             'Accept': 'application/vnd.github.v3+json',
             'Content-Type': 'application/json'
         },
